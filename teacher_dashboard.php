@@ -570,8 +570,8 @@ body {
         <a href="teacher_classes.php"><i class="fas fa-chalkboard"></i> <span>My Classes</span></a>
         <a href="teacher_students.php"><i class="fas fa-users"></i> <span>Students</span></a>
         <a href="uploadResults.php"><i class="fas fa-upload"></i> <span>Upload Results</span></a>
-        <a href="#"><i class="fas fa-chart-line"></i> <span>Reports</span></a>
-        <a href="#"><i class="fas fa-cog"></i> <span>Settings</span></a>
+        <a href="viewReports.php"><i class="fas fa-chart-line"></i> <span>Reports</span></a>
+        <a href="settings.php"><i class="fas fa-cog"></i> <span>Settings</span></a>
         <a href="logout.php"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
     </div>
 </div>
@@ -746,7 +746,7 @@ body {
             <a href="teacher_classes.php" class="action-btn">
                 <i class="fas fa-plus-circle"></i> Create New Class
             </a>
-            <a href="bulk_enrollment.php" class="action-btn">
+            <a href="enroll.php" class="action-btn">
                 <i class="fas fa-user-plus"></i> Enroll Students
             </a>
             <a href="uploadResults.php" class="action-btn">

@@ -542,7 +542,7 @@ body {
                 <a href="dashboard.php" class="btn-primary">
                     <i class="fas fa-home"></i> Back to Dashboard
                 </a>
-                <a href="edit_profile.php" class="btn-secondary">
+                <a href="settings.php" class="btn-secondary">
                     <i class="fas fa-edit"></i> Edit Profile
                 </a>
             </div>
