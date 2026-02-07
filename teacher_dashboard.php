@@ -1,9 +1,82 @@
 <?php
 session_start();
+require 'db.php';
+
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'teacher') {
-    header("Location: login.php");
+    header("Location: index.php");
     exit;
 }
+
+$teacher_id = $_SESSION['id'];
+
+// Fetch total classes
+$classesQuery = mysqli_query($conn, 
+    "SELECT COUNT(*) as total FROM classes 
+     WHERE teacher_id = '$teacher_id' AND status = 'active'");
+$totalClasses = mysqli_fetch_assoc($classesQuery)['total'];
+
+// Fetch total students across all classes
+$studentsQuery = mysqli_query($conn,
+    "SELECT COUNT(DISTINCT e.student_id) as total 
+     FROM enrollments e 
+     JOIN classes c ON e.class_id = c.id 
+     WHERE c.teacher_id = '$teacher_id' AND e.status = 'enrolled'");
+$totalStudents = mysqli_fetch_assoc($studentsQuery)['total'];
+
+// Fetch pending assessments without results
+$pendingQuery = mysqli_query($conn,
+    "SELECT COUNT(DISTINCT a.id) as total
+     FROM assessments a
+     JOIN classes c ON a.class_id = c.id
+     LEFT JOIN results r ON a.id = r.assessment_id
+     WHERE c.teacher_id = '$teacher_id'
+     AND a.date <= CURDATE() + INTERVAL 7 DAY
+     GROUP BY a.id
+     HAVING COUNT(r.id) = 0");
+$pendingTasks = mysqli_num_rows($pendingQuery);
+
+// Fetch attendance rate for current month
+$attendanceQuery = mysqli_query($conn,
+    "SELECT 
+        COUNT(CASE WHEN att.status = 'present' THEN 1 END) as present,
+        COUNT(att.id) as total
+     FROM attendance att
+     JOIN classes c ON att.class_id = c.id
+     WHERE c.teacher_id = '$teacher_id'
+     AND MONTH(att.date) = MONTH(CURDATE())
+     AND YEAR(att.date) = YEAR(CURDATE())");
+$attendanceData = mysqli_fetch_assoc($attendanceQuery);
+$attendanceRate = $attendanceData['total'] > 0 
+    ? round(($attendanceData['present'] / $attendanceData['total']) * 100) 
+    : 0;
+
+// Fetch recent activity
+$recentActivity = mysqli_query($conn,
+    "SELECT 'result' as type, 
+            a.title, 
+            c.class_name, 
+            MAX(r.uploaded_at) as activity_date,
+            COUNT(DISTINCT r.student_id) as count
+     FROM results r
+     JOIN assessments a ON r.assessment_id = a.id
+     JOIN classes c ON a.class_id = c.id
+     WHERE a.created_by = '$teacher_id'
+     GROUP BY a.id, a.title, c.class_name
+     ORDER BY MAX(r.uploaded_at) DESC
+     LIMIT 4");
+
+// Calculate average students per class
+$avgStudents = $totalClasses > 0 ? round($totalStudents / $totalClasses, 1) : 0;
+
+// Fetch upcoming events and assessments
+$upcomingQuery = mysqli_query($conn,
+    "SELECT 'assessment' as type, a.title, a.date, c.class_name, c.room_number
+     FROM assessments a
+     JOIN classes c ON a.class_id = c.id
+     WHERE c.teacher_id = '$teacher_id' 
+     AND a.date >= CURDATE()
+     ORDER BY a.date ASC
+     LIMIT 4");
 ?>
 <!DOCTYPE html>
 <html>
@@ -496,7 +569,7 @@ body {
         <a href="profile.php"><i class="fas fa-user"></i> <span>My Profile</span></a>
         <a href="teacher_classes.php"><i class="fas fa-chalkboard"></i> <span>My Classes</span></a>
         <a href="teacher_students.php"><i class="fas fa-users"></i> <span>Students</span></a>
-        <a href="#"><i class="fas fa-upload"></i> <span>Upload Results</span></a>
+        <a href="uploadResults.php"><i class="fas fa-upload"></i> <span>Upload Results</span></a>
         <a href="#"><i class="fas fa-chart-line"></i> <span>Reports</span></a>
         <a href="#"><i class="fas fa-cog"></i> <span>Settings</span></a>
         <a href="logout.php"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
@@ -525,9 +598,11 @@ body {
             <div class="stat-card-header">
                 <div>
                     <h3>Total Classes</h3>
-                    <div class="number">8</div>
+                    <div class="number"><?php echo $totalClasses; ?></div>
                     <p><i class="fas fa-check-circle" style="color: #28a745;"></i> Active this semester</p>
-                    <span class="stat-badge">+2 from last term</span>
+                    <span class="stat-badge">
+                        <?php echo $totalClasses > 0 ? 'Teaching '.$totalClasses.' class'.($totalClasses > 1 ? 'es' : '') : 'No classes yet'; ?>
+                    </span>
                 </div>
                 <div class="stat-card-icon">
                     <i class="fas fa-chalkboard-teacher"></i>
@@ -539,9 +614,9 @@ body {
             <div class="stat-card-header">
                 <div>
                     <h3>Total Students</h3>
-                    <div class="number">156</div>
+                    <div class="number"><?php echo $totalStudents; ?></div>
                     <p><i class="fas fa-users" style="color: #0c5a55;"></i> Across all classes</p>
-                    <span class="stat-badge">Average: 19.5/class</span>
+                    <span class="stat-badge">Average: <?php echo $avgStudents; ?>/class</span>
                 </div>
                 <div class="stat-card-icon">
                     <i class="fas fa-user-graduate"></i>
@@ -553,9 +628,11 @@ body {
             <div class="stat-card-header">
                 <div>
                     <h3>Pending Tasks</h3>
-                    <div class="number">12</div>
-                    <p><i class="fas fa-exclamation-circle" style="color: #ffc107;"></i> Results to upload</p>
-                    <span class="stat-badge warning">Due this week</span>
+                    <div class="number"><?php echo $pendingTasks; ?></div>
+                    <p><i class="fas fa-exclamation-circle" style="color: #ffc107;"></i> Assessments pending</p>
+                    <span class="stat-badge <?php echo $pendingTasks > 5 ? 'warning' : ''; ?>">
+                        <?php echo $pendingTasks > 0 ? 'Action needed' : 'All caught up!'; ?>
+                    </span>
                 </div>
                 <div class="stat-card-icon">
                     <i class="fas fa-tasks"></i>
@@ -567,9 +644,16 @@ body {
             <div class="stat-card-header">
                 <div>
                     <h3>Attendance Rate</h3>
-                    <div class="number">94%</div>
+                    <div class="number"><?php echo $attendanceRate; ?>%</div>
                     <p><i class="fas fa-chart-line" style="color: #28a745;"></i> This month average</p>
-                    <span class="stat-badge">+3% from last month</span>
+                    <span class="stat-badge">
+                        <?php 
+                        if ($attendanceRate >= 90) echo 'Excellent!';
+                        elseif ($attendanceRate >= 75) echo 'Good';
+                        elseif ($attendanceRate > 0) echo 'Needs improvement';
+                        else echo 'No data yet';
+                        ?>
+                    </span>
                 </div>
                 <div class="stat-card-icon">
                     <i class="fas fa-chart-pie"></i>
@@ -585,34 +669,37 @@ body {
                 <a href="#" class="view-all">View All →</a>
             </div>
             <ul class="recent-activity">
-                <li class="activity-item">
-                    <div class="activity-header">
-                        <span class="activity-title">Grade 10 Mathematics - Test Results Uploaded</span>
-                        <span class="activity-time"><i class="fas fa-clock"></i> 2 hours ago</span>
-                    </div>
-                    <p class="activity-description">Successfully uploaded test results for 24 students</p>
-                </li>
-                <li class="activity-item">
-                    <div class="activity-header">
-                        <span class="activity-title">New Class Created: Advanced Physics</span>
-                        <span class="activity-time"><i class="fas fa-clock"></i> 5 hours ago</span>
-                    </div>
-                    <p class="activity-description">Class created with 18 enrolled students for Fall 2024</p>
-                </li>
-                <li class="activity-item">
-                    <div class="activity-header">
-                        <span class="activity-title">Attendance Marked - Grade 11 Chemistry</span>
-                        <span class="activity-time"><i class="fas fa-clock"></i> Yesterday</span>
-                    </div>
-                    <p class="activity-description">22 out of 23 students present (95.7% attendance)</p>
-                </li>
-                <li class="activity-item">
-                    <div class="activity-header">
-                        <span class="activity-title">Assignment Graded - Biology Lab Report</span>
-                        <span class="activity-time"><i class="fas fa-clock"></i> 2 days ago</span>
-                    </div>
-                    <p class="activity-description">Completed grading for 28 submissions, average score: 82%</p>
-                </li>
+                <?php if (mysqli_num_rows($recentActivity) > 0): ?>
+                    <?php while ($activity = mysqli_fetch_assoc($recentActivity)): ?>
+                        <li class="activity-item">
+                            <div class="activity-header">
+                                <span class="activity-title">
+                                    <?php echo htmlspecialchars($activity['class_name']); ?> - <?php echo htmlspecialchars($activity['title']); ?>
+                                </span>
+                                <span class="activity-time">
+                                    <i class="fas fa-clock"></i> 
+                                    <?php 
+                                    $time_diff = time() - strtotime($activity['activity_date']);
+                                    if ($time_diff < 3600) echo floor($time_diff / 60) . ' minutes ago';
+                                    elseif ($time_diff < 86400) echo floor($time_diff / 3600) . ' hours ago';
+                                    elseif ($time_diff < 172800) echo 'Yesterday';
+                                    else echo floor($time_diff / 86400) . ' days ago';
+                                    ?>
+                                </span>
+                            </div>
+                            <p class="activity-description">
+                                Results uploaded for <?php echo $activity['count']; ?> student<?php echo $activity['count'] > 1 ? 's' : ''; ?>
+                            </p>
+                        </li>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <li class="activity-item">
+                        <div class="activity-header">
+                            <span class="activity-title">No recent activity</span>
+                        </div>
+                        <p class="activity-description">Start creating classes and uploading results to see activity here</p>
+                    </li>
+                <?php endif; ?>
             </ul>
         </div>
 
@@ -620,26 +707,34 @@ body {
             <div class="card-header">
                 <h2><i class="fas fa-calendar-check"></i> Upcoming</h2>
             </div>
-            <div class="upcoming-item">
-                <div class="upcoming-date"><i class="fas fa-calendar"></i> Tomorrow, 10:00 AM</div>
-                <div class="upcoming-title">Grade 12 Physics - Final Exam</div>
-                <div class="upcoming-details">Room 204 • 2 hours duration</div>
-            </div>
-            <div class="upcoming-item">
-                <div class="upcoming-date"><i class="fas fa-calendar"></i> Friday, 2:00 PM</div>
-                <div class="upcoming-title">Parent-Teacher Conference</div>
-                <div class="upcoming-details">Conference Room A • 15 meetings scheduled</div>
-            </div>
-            <div class="upcoming-item">
-                <div class="upcoming-date"><i class="fas fa-calendar"></i> Next Monday</div>
-                <div class="upcoming-title">Grade 9 Math - Assignment Due</div>
-                <div class="upcoming-details">Chapter 5 Problem Set • 32 students</div>
-            </div>
-            <div class="upcoming-item">
-                <div class="upcoming-date"><i class="fas fa-calendar"></i> Next Wednesday</div>
-                <div class="upcoming-title">Department Meeting</div>
-                <div class="upcoming-details">Staff Room • Curriculum review</div>
-            </div>
+            <?php if (mysqli_num_rows($upcomingQuery) > 0): ?>
+                <?php while ($upcoming = mysqli_fetch_assoc($upcomingQuery)): ?>
+                    <div class="upcoming-item">
+                        <div class="upcoming-date">
+                            <i class="fas fa-calendar"></i> 
+                            <?php 
+                            $date = strtotime($upcoming['date']);
+                            $diff = floor(($date - time()) / 86400);
+                            if ($diff == 0) echo 'Today';
+                            elseif ($diff == 1) echo 'Tomorrow';
+                            else echo date('l, M j', $date);
+                            ?>
+                        </div>
+                        <div class="upcoming-title"><?php echo htmlspecialchars($upcoming['class_name']); ?> - <?php echo htmlspecialchars($upcoming['title']); ?></div>
+                        <div class="upcoming-details">
+                            <?php if ($upcoming['room_number']): ?>
+                                Room <?php echo htmlspecialchars($upcoming['room_number']); ?> • 
+                            <?php endif; ?>
+                            <?php echo date('M j, Y', $date); ?>
+                        </div>
+                    </div>
+                <?php endwhile; ?>
+            <?php else: ?>
+                <div class="upcoming-item">
+                    <div class="upcoming-title">No upcoming events</div>
+                    <div class="upcoming-details">Create assessments to see them here</div>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -651,14 +746,14 @@ body {
             <a href="teacher_classes.php" class="action-btn">
                 <i class="fas fa-plus-circle"></i> Create New Class
             </a>
+            <a href="bulk_enrollment.php" class="action-btn">
+                <i class="fas fa-user-plus"></i> Enroll Students
+            </a>
             <a href="uploadResults.php" class="action-btn">
                 <i class="fas fa-upload"></i> Upload Results
             </a>
             <a href="viewReports.php" class="action-btn">
                 <i class="fas fa-file-alt"></i> View Reports
-            </a>
-            <a href="#" class="action-btn">
-                <i class="fas fa-user-check"></i> Mark Attendance
             </a>
         </div>
     </div>
