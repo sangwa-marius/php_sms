@@ -280,7 +280,7 @@ $students = mysqli_query($conn, "SELECT * FROM users WHERE role = 'student' ORDE
     <a href="manage_teachers.php"><i class="fas fa-chalkboard-teacher"></i> <span>Manage Teachers</span></a>
     <a href="principle_reports.php"><i class="fas fa-chart-bar"></i> <span>Reports</span></a>
     <a href="../logout.php"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
-    <a href="../settings.php"><i class="fas fa-settings"></i> <span>settings</span></a>
+    <a href="../settings.php"><i class="fas fa-cog"></i> <span>settings</span></a>
 </div>
 
 <div class="main">
