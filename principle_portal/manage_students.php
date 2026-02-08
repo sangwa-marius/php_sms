@@ -3,7 +3,7 @@ session_start();
 require '../db/db.php';
 
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'principle') {
-    header("Location: index.php");
+    header("Location: ../index.php");
     exit;
 }
 

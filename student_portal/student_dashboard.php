@@ -4,7 +4,7 @@ require '../db/db.php';
 
 // Error handling
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'student') {
-    header("Location: index.php");
+    header("Location: ../index.php");
     exit;
 }
 
