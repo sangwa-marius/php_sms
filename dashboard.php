@@ -8,15 +8,15 @@ if (!isset($_SESSION['id'])) {
 
 switch ($_SESSION['role']) {
     case 'student':
-        header("Location: student_dashboard.php");
+        header("Location: ./student_portal/student_dashboard.php");
         break;
 
     case 'teacher':
-        header("Location: teacher_dashboard.php");
+        header("Location: ./teacher_portal/teacher_dashboard.php");
         break;
 
     case 'principle':
-        header("Location: principle_dashboard.php");
+        header("Location: ./principle_portal/principle_dashboard.php");
         break;
 
     default:

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'db.php';
+require './db/db.php';
 
 if (!isset($_SESSION['id'])) {
     header("Location: index.php");

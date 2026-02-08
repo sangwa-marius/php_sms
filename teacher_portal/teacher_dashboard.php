@@ -1,6 +1,6 @@
 <?php
 session_start();
-require 'db.php';
+require '../db/db.php';
 
 if (!isset($_SESSION['id']) || $_SESSION['role'] !== 'teacher') {
     header("Location: index.php");
@@ -566,13 +566,13 @@ body {
     </div>
     <div class="sidebar-menu">
         <a href="teacher_dashboard.php" class="active"><i class="fas fa-home"></i> <span>Dashboard</span></a>
-        <a href="profile.php"><i class="fas fa-user"></i> <span>My Profile</span></a>
+        <a href="../profile.php"><i class="fas fa-user"></i> <span>My Profile</span></a>
         <a href="teacher_classes.php"><i class="fas fa-chalkboard"></i> <span>My Classes</span></a>
         <a href="teacher_students.php"><i class="fas fa-users"></i> <span>Students</span></a>
         <a href="uploadResults.php"><i class="fas fa-upload"></i> <span>Upload Results</span></a>
         <a href="viewReports.php"><i class="fas fa-chart-line"></i> <span>Reports</span></a>
-        <a href="settings.php"><i class="fas fa-cog"></i> <span>Settings</span></a>
-        <a href="logout.php"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
+        <a href="teacher_settings.php"><i class="fas fa-cog"></i> <span>Settings</span></a>
+        <a href="../logout.php"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
     </div>
 </div>
 

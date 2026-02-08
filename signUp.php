@@ -63,6 +63,11 @@
             cursor: pointer;
         }
 
+        .exists{
+            color: red;
+            text-align:center;
+        }
+
         button:hover {
             background: #0056b3;
         }
@@ -107,7 +112,7 @@
     <a href ='index.php' class ='link'>Already have an account? Login</a>
 
         <?php
-        require 'db.php';
+        require './db/db.php';
 
         if (isset($_POST['submit'])) {
             $name = $_POST['name'];
@@ -128,17 +133,30 @@
             if (!in_array($role, ['student','teacher','principle'])) {
                 die('Invalid role');
             }
+           // Check if email already exists
+            $checkSql = "SELECT id FROM users WHERE email = ?";
+            $checkStmt = $conn->prepare($checkSql);
+            $checkStmt->bind_param("s", $email);
+            $checkStmt->execute();
+            $result = $checkStmt->get_result();
 
-            $sql = "INSERT INTO users (name,email,password,role,profile_image)
-            VALUES (?,?,?,?,?)";
+            if ($result->num_rows > 0) {
+                echo "<p class ='exists'>The email is already registered</p>";
+                exit;
+            }
+
+            // Insert new user
+            $sql = "INSERT INTO users (name, email, password, role, profile_image)
+            VALUES (?, ?, ?, ?, ?)";
+
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param("sssss", $name,$email,$password,$role,$imageName);
+            $stmt->bind_param("sssss", $name, $email, $password, $role, $imageName);
             $stmt->execute();
-
 
             header("Location: index.php");
             exit;
-        }
+
+            }
         ?>
     </form>
 </div>

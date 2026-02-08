@@ -108,7 +108,7 @@
 
         <?php
         session_start();
-        require 'db.php';
+        require './db/db.php';
 
         if (isset($_POST['submit'])) {
             $email = $_POST['email'];
@@ -129,13 +129,13 @@
                 $_SESSION['name'] = $user['name'];
 
                 if($user['role']=='student'){
-                    header('Location: student_dashboard.php');
+                    header('Location: ./student_portal/student_dashboard.php');
                     exit;
                 }else if($user['role']==='teacher'){
-                     header('Location: teacher_dashboard.php');
+                     header('Location: ./teacher_portal/teacher_dashboard.php');
                     exit;
                 }else{
-                     header('Location: principle_dashboard.php');
+                     header('Location: ./principle_portal/principle_dashboard.php');
                     exit;
                 }
             }else{
